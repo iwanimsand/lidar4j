@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,10 +16,12 @@ public class SerialReader implements Runnable {
     private final Logger logger = LoggerFactory.getLogger(SerialReader.class);
     private final String serialPort;
     private final DataPacketFactory dataPacketFactory;
+    private final Consumer<DataPacket> consumer;
 
-    public SerialReader(final String serialPort, DataPacketFactory dataPacketFactory) {
+    public SerialReader(final String serialPort, DataPacketFactory dataPacketFactory, Consumer<DataPacket> consumer) {
         this.serialPort = serialPort;
         this.dataPacketFactory = dataPacketFactory;
+        this.consumer = consumer;
     }
 
     @Override
@@ -54,8 +57,12 @@ public class SerialReader implements Runnable {
 
                         if (buffer[0] == 0x54 && buffer[1] == 0x2C) {
                             // full package received
-                            logger.trace(hexString);
-                            logger.trace(dataPacketFactory.fromBytes(buffer).toString());
+                            DataPacket dataPacket = dataPacketFactory.fromBytes(buffer);
+                            if (logger.isTraceEnabled()) {
+                                logger.trace(hexString);
+                                logger.trace(dataPacket.toString());
+                            }
+                            consumer.accept(dataPacket);
                         } else {
                             // something is wrong...
                             logger.warn("Corrupt package: {}", hexString);
